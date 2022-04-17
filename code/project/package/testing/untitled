@@ -1,0 +1,51 @@
+
+
+
+def steps_experiment(trotter_function, n_max , n_min = 4, target_time = np.pi, step=1, repetitions = 3, backend_name=None, backend = sim, terms = ['x1', 'y1', 'z1', 'x2', 'y2', 'z2'], noise_model = None, compiler = False, shuttle=False, pauli_compiler = False, qsd = False):
+    """
+    Repeatedly runs test_circuit to evaluate a given trotter decomposition as we increase the number of steps
+    Inputs: trotter_function, function which returns QC instructions for trotter gate
+            n_max, int, max number of trotter_steps
+            n_min, int, min number of trotter_steps
+            step, int, spacing between trotter_steps
+            repetitions, int, number of experiments averaged over
+            backend
+            terms, list of strings, indicating order of decomposition
+    
+    """
+    
+    fids = []
+    n_steps = []
+    
+    for i in range(n_min, n_max, step):
+        n_steps.append(i)
+        fids.append(test_circuit(trotter_function, i, target_time = target_time, repetitions = repetitions, backend_name = backend_name, backend = backend, noise_model = noise_model, compiler = compiler, pauli_compiler=pauli_compiler, shuttle=shuttle, qsd = qsd))
+        
+    return n_steps, fids        
+
+def time_experiment(trotter_function, trotter_steps , time_steps = 10, max_time = np.pi, step=1, repetitions = 3, backend_name=None, backend = sim, terms = ['x1', 'y1', 'z1', 'x2', 'y2', 'z2'], noise_model = None, compiler = False, shuttle=False, pauli_compiler = False):
+    
+    ts = [ i * max_time/time_steps for i in range(1, time_steps + 1)]
+    fids = []
+    
+    for t in ts:
+        print("Simulating until time ", t)
+        fids.append(test_circuit(trotter_function, trotter_steps, target_time = t, repetitions = repetitions, backend_name = backend_name, backend = backend, noise_model = noise_model, compiler = compiler, pauli_compiler=pauli_compiler, shuttle=shuttle))
+        
+    return ts, fids
+
+def plot_results(x, y, plot_name = None, x_axis_name = None, y_axis_name = "Average State Fidelity"):
+    
+    plt.scatter(x, y)
+    
+    if plot_name:
+        plt.title(plot_name)
+        
+    if x_axis_name:
+        plt.xlabel(x_axis_name)
+    if y_axis_name:
+        plt.ylabel(y_axis_name)
+        
+    plt.show()
+
+

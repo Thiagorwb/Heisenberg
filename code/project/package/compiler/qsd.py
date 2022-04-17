@@ -3,9 +3,14 @@ from .gray import *
 
 def de_multiplex(a, b):
     '''
-    Input: unitary matrices a, b of same shape
-    Output: unitary matrices V, W, diagonal matrix d, s.t.
-            a = V d W, b = V d^\dagger W
+    Given a quantum multiplexor ((a, 0), (0, b)), where a, b are unitary matrices, this function decomposes
+    the multiplexors into the relevant terms using the Schur decomposition. 
+
+    Refer to writeup and https://arxiv.org/abs/quant-ph/0308033 for details
+
+    Input: unitary matrices a, b of same shape, as 2D numpy arrays
+    Output: 3 distinct 2D numpy arrays, unitary matrices V, W, diagonal matrix d, such that
+            a = V d W and b = V d^\dagger W
     '''
     
     ab = np.matmul(a, np.matrix(b).getH())
@@ -20,13 +25,11 @@ def de_multiplex(a, b):
 def multiplex_diagonal(matrix):
     """
     Input: diagonal, unitary matrix
-    Returns: quantum circuit for [matrix, 0], [0, matrix^\dagger]
-            Using only 2 qubit gates
-    
+    Returns: quantum circuit instructions for the unitary [[matrix, 0], [0, matrix^\dagger]], using only 2 qubit gates
     """
     
     if not np.all(matrix == np.diag(np.diagonal(matrix))) or not is_unitary(matrix):
-        print("Input Matrix is not diagonal!")
+        print("Input Matrix is not diagonal or unitary!")
         
     dim, dim = np.shape(matrix)
     num_qubits = int(np.log2(dim)) + 1
@@ -49,13 +52,6 @@ def multiplex_diagonal(matrix):
             index = num_qubits - 2
         else:
             index = gray_index(i)
-               
-        """# uncomment here
-        if coupling_map:
-            lrcx = long_range_cx(num_qubits - 1, index, num_qubits)
-            qc.append(lrcx, qr)
-        else:
-            qc.cx(qr[index], qr[-1])"""
         
         qc.cx(qr[index], qr[-1])
         
@@ -63,8 +59,14 @@ def multiplex_diagonal(matrix):
 
 def gray_angles(theta):
     """
-    Input: vector theta of angles of controlled rotation gate
-    Output: rotated angles after gray code optimization
+    The Gray code optimization permutes and combines the angles of the multi-controlled rotation gates,
+    and we need to adequate for the modification. Refer to https://arxiv.org/abs/quant-ph/0308033 for details. 
+
+    Input: 
+    theta, numpy array of floats, angles of multi-controlled rotation gate
+
+    Output: 
+    numpy array of floats, the transformed angles
     
     """
     
@@ -85,9 +87,16 @@ def gray_angles(theta):
 
 def cs_circuit(theta, num_qubits):
     """
-    Input: vector theta of angles of multiplexed ry gate
-    Output: 2-qubit gate circuit for multiplexed ry
+    Function generates the Quantum Circuit instructions for the multi-controlled Ry gate, 
+    which appears in the sine-cossine transform. 
+
+    Input: 
+    theta, numpy array of floats, angles of multi-controlled ry rotation gate
+    num_qubits, int, number of qubits
+
+    Output: QuantumCircuit Instructions, comprised of only 2-qubit gates
     """
+
     qr = QuantumRegister(num_qubits)
     qc = QuantumCircuit(qr)
     
@@ -118,6 +127,12 @@ def cs_circuit(theta, num_qubits):
 
 
 def zyz_gate(unitary):
+
+    """
+    Given a single qubit unitary, compiles it into a sequence of 3 rotation gates: rz, ry, rz
+    Input: unitary, complex numpy array, 2 by 2 unitary matrix
+    Output: Quantum Circuit Instructions for single qubit unitary with rz and ry gates
+    """
     
     # check if unitary and correct size
     if len(unitary) != 2 :
@@ -142,11 +157,17 @@ def zyz_gate(unitary):
         if b != 0.0: 
             qc.rz(b, qr)
     
-    #qc = transpile(qc, optimization_level = 3, basis_gates = jbasis)
     
     return qc.decompose().to_instruction()
 
 def physical_zyz(unitary):
+    """
+    Given a single qubit unitary, compiles it into a sequence of 3 rotation gates: rz, ry, rz, and then transforms
+    it into the native gates of the IBMQ chips (i.e. sx and rz, not ry)
+
+    Input: unitary, complex numpy array, 2 by 2 unitary matrix
+    Output: Quantum Circuit Instructions for single qubit unitary with rz and sx gates
+    """
     
     # check if unitary and correct size
     if len(unitary) != 2 :
@@ -180,6 +201,18 @@ def physical_zyz(unitary):
     
 
 def kak1_gate(unitary):
+
+    """
+    Function computes the KAK1 decomposition for 2-qubit unitaries, generating a 3 2-qubit gate circuit
+    For details on the decomposition, see https://arxiv.org/abs/quant-ph/0011050
+
+    Input:
+    unitary, 4 by 4 numpy array, unitary matrix
+
+    Output:
+    QuantumCircuit Instructions, comprised of at most 3 CNOT gates
+
+    """
     
     dim, dim = np.shape(unitary)
     if dim == 2:
@@ -195,6 +228,19 @@ def kak1_gate(unitary):
     return kak1_decomposer(unitary).decompose().to_instruction()
     
 def QSD(U):
+
+    """
+    The Quantum Compiler - function computes the "Quantum Shannon Decomposition" of a unitary U, compiling it into
+    only 2-qubit and single qubit gates configured on a fully connected geometry.  
+
+    For details on the recursive decomposition, refer to the accompanying writeup or to https://arxiv.org/abs/quant-ph/0406176
+
+    Input:
+    U, 2D numpy array, unitary matrix
+
+    Output:
+    QuantumCircuit Instructions, a circuit description for U using 2-qubit gates
+    """
     
     dim, dim = np.shape(U)
     num_qubits = int(np.log2(dim))
@@ -249,6 +295,12 @@ def QSD(U):
     return qc.decompose().to_instruction()
 
 def gen_qsd(U):
+    """
+    Wrapper function which compiles U into a Quantum Circuit using the QSD() function, and returns the circuit
+    Input: U, 2D numpy array, unitary matrix
+    Output: QuantumCircuit
+    """
+
     dim, dim = np.shape(U)
     num_qubits = int(np.log2(dim))
     
@@ -258,4 +310,20 @@ def gen_qsd(U):
     qc.append(QSD(U), qr)
     
     return qc.decompose().decompose()
+
+def qsd_qc(t, num_qubits = 3):
+
+    """
+    Function generates the unitary corresponding to the time evolution of the XXX Heisenberg model on `num-qubits' qubits, 
+    for time t, and directly compiles it into a quantum circuit with only 2-qubit gates
+
+    Inputs:
+    - t, float, target time
+    - num_qubits, int, number of qubits in the Hamiltonian
+    """
+    
+    time_evol = U_Heis(t, num_qubits)
+    circuit = gen_qsd(time_evol).decompose()
+    
+    return circuit.decompose().to_instruction()
 

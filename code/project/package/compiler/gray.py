@@ -1,11 +1,20 @@
 import numpy as np
 
+########################################
+####### Gray code helper functions #####
+########################################
+
+"""
+Please see https://en.wikipedia.org/wiki/Gray_code for definitions and details, 
+
+or refer to https://arxiv.org/abs/quant-ph/0404089 for details on the application to quantum compilation schemes
+"""
+
 def gray_code(num):
     shift = (num >> 1)
     return (shift ^ num)
 
 def gray_index(num):
-    
     return int(np.log2((gray_code(num) ^ gray_code(num + 1))))
 
 def setBitNumber(n):
@@ -22,9 +31,11 @@ def setBitNumber(n):
     return (1 << msb);
 
 def gray(i):
+
     return int(np.log2(setBitNumber(GrayToBinary(gray_index(i)))))
 
 def GrayToBinary(gray_num):
+    """Converts gray code number to binary number representing it"""
 
     mask = gray_num
     while (mask):           

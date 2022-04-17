@@ -21,7 +21,7 @@ from qiskit.providers.aer import QasmSimulator
 from qiskit.tools.monitor import job_monitor
 from qiskit.circuit import Parameter
 from qiskit.providers.aer.noise import NoiseModel
-from qiskit.quantum_info import OneQubitEulerDecomposer, TwoQubitBasisDecomposer
+from qiskit.quantum_info import OneQubitEulerDecomposer, TwoQubitBasisDecomposer, Statevector
 
 # Import state tomography modules
 from qiskit.ignis.verification.tomography import state_tomography_circuits, StateTomographyFitter

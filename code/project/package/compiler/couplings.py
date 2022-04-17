@@ -1,20 +1,61 @@
 from .qsd import *
 
+##################
+## Basic Graphs ##
+##################
+
+def clique(n):
+    """ 
+    Computes adjacency matrix for a Fully Connected Graph
+    Input: n, int, size
+    Output: List of 2-tuples, the edges
+    """
+    a = []
+    for i in range(n-1):
+        for j in range(i+1, n):
+            a.append([i,j])
+    return a
+
+def line(n):
+    """ 
+    Computes adjacency matrix for a Line Graph
+    Input: n, int, size
+    Output: List of 2-tuples, the edges
+    """
+    a = []
+    for i in range(n-1):
+        a.append([i,i+1])
+    return a
+
+##################
+## Graph Parser ##
+##################
+
 class Graph:
-    
     """
     Graph Class - underlying map that the circuit lives on
     
-    Inputs - int, number of vertices, and list coupling_map, list of directed edges
-    Methods - construct-adjacency, 
-            - apsp
-            - query path, returns path between query qubits i to j
+    Inputs 
+    - nvertices, int, number of vertices, 
+    - coupling_map, list of 2-tuples, list of undirected edges
+
+    Methods 
+
+    - construct-adjacency, constructs adjacency list of graph
+    - APSP, computes all pairs shortest paths in G
+    - Query_path, returns path between query qubits i and j
     
     """
     
     def __init__(self, nvertices,  coupling_map = None):
+        """
+        Inputs 
+        - nvertices, int, number of vertices, 
+        - coupling_map, list of 2-tuples, list of undirected edges
+
+        """
+
         # coupling_map must be list of edges
-        
         if not coupling_map:
             print("Where is your graph?")
             
@@ -27,6 +68,9 @@ class Graph:
         self.distances, self.preds = self.APSP()
         
     def Construct_adjacency(self):
+        """
+        Constructs adjacency matrix
+        """
         
         adjacency = {}
         
@@ -42,6 +86,9 @@ class Graph:
         return adjacency
         
     def APSP(self):
+        """
+        Computes all pairs shortest paths using Floyd-Warshall's algorithm
+        """
         dist = {}
         pred = {}
         
@@ -99,17 +146,22 @@ class Graph_Parser:
     
     -  initializes underlying circuit topology,
     - parses fully connected circuit to a circuit of given topology
+
+    Inputs 
+    - nvertices, int, number of vertices, 
+    - coupling_map, list of 2-tuples, list of undirected edges
     
     Methods
-    
-    - parse 
-    Inputs: Qiskit Quantum circuit, returns qiskit quantum circuit defined on topology
-    
+    - parse: given an input quantum circuit, returns another quantum circuit defined on the topology    
     
     """
     
     def __init__(self, nvertices,  coupling_map = None):
-        # coupling_map must be list of edges
+        """
+        Inputs 
+        - nvertices, int, number of vertices, 
+        - coupling_map, list of 2-tuples, list of undirected edges
+        """
         
         if not coupling_map:
             print("Where is your graph?")
@@ -122,13 +174,21 @@ class Graph_Parser:
         self.graph = Graph(self.n,  self.map)
         
     def parse(self, circuit):
+        """
+        Inputs 
+        - circuit, Quantum Circuitt 
+
+        Returns
+        - quantum circuit instructions, with 2-qubit gates only supported on adjacenct qubits in the coupling_map
+
+        Note: Input quantum circuit must only have CNOTs as 2 qubit gates - consider compiling or transpiling first
+        """
         
         # parse circuit into DAG
         dag = circuit_to_dag(circuit)
-        num_qubits = dag.num_qubits()
         
         # initialize new qc
-        qr = QuantumRegister(num_qubits)
+        qr = QuantumRegister(self.n)
         new_qc = QuantumCircuit(qr)
 
         # parse each operation at a time, expanding two qubit cxs into long range gates
@@ -151,15 +211,36 @@ class Graph_Parser:
                 path = self.graph.Query_path(p1, p2)
                 
                 # perform long range cx
-                longcx = cx_on_a_path(path, num_qubits)
+                longcx = cx_on_a_path(path, self.n)
                 new_qc.append(longcx, qr)
                 
         return new_qc.decompose().to_instruction()
         
 
 def geometric_compile(circuit, nqubits, coupling_map):
+    """
+    Wrapper function for geometric (graph) compilation scheme
+
+    Inputs:
+    - circuit, QuantumCircuit, circuit to be compiled into the geometry
+    - nqubits, int, number of qubits on the underlying quantum chip
+    - coupling_map, list of 2-tuples, list of undirected edges
+
+    Function initializes the Graph_Parser class on the coupling map, and compiles the circuit
+
+    Returns:
+    - Quantum Circuit instructions, with 2-qubit interactions all adjacent on the underlying coupling map
+
+    Note: Input quantum circuit must only have CNOTs as 2 qubit gates - consider compiling or transpiling first
+
+    """
     
     parser = Graph_Parser(nqubits, coupling_map)
     instr = parser.parse(circuit)
     
     return instr
+
+
+
+
+
