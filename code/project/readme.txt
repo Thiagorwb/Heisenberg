@@ -2,9 +2,7 @@
 
 Hi!
 
-here you can find my submission to the IBMQ open science prize. 
-
-In main.ipynb, you can find my main submission. Please run it for me! I only managed the time to run it on noisy simulations of Jakarta.
+here you can find my submission to the IBMQ open science prize. In main.ipynb, you can find my main submission. 
 
 In this folder you should be able to find my writeup, where I go over the main methods used. Here one can find their implementation:
 
